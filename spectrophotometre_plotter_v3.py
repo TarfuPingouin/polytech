@@ -34,7 +34,7 @@ for nom in noms_fichiers:
     try:
         separateur, decimale = detect_format(nom)
         df = pd.read_csv(nom, sep=separateur, skiprows=2, header=None, decimal=decimale)
-        df[0] = pd.to_numeric(df[0], errors="coerce") / 10
+        df[0] = pd.to_numeric(df[0], errors="coerce")
         df[1] = pd.to_numeric(df[1], errors="coerce")
         df.dropna(subset=[0, 1], inplace=True)
         donnees.append((df[0], df[1], nom))
