@@ -4,13 +4,16 @@ import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
 # Fichier et format
-nom = "Phosphate Eu.csv"
+nom = "Te-Eu.csv"
 separateur = ","
 decimale = "."
 
 # Bornes de tronquage (en nm)
-lambda_min = 310
-lambda_max = 6700
+lambda_min = 350
+lambda_max = 700
+
+# Limitation de l'affichage des valeurs sur la courbe
+affich_val = 25
 
 # Lissage de la dérivée
 lisser_derivative = True      # Mettre False pour désactiver
@@ -50,7 +53,7 @@ plt.scatter(extrema_x, extrema_y, color='black', marker='x', label='Extrema')
 # Affichage d’un seul label par tranche de 50 nm
 labeled_bins = set()
 for x_val, y_val in zip(extrema_x, extrema_y):
-    bin_key = int(x_val // 80)
+    bin_key = int(x_val // affich_val)
     if bin_key not in labeled_bins:
         plt.annotate(f"{x_val:.0f} nm", xy=(x_val, y_val),
                      xytext=(0, 10), textcoords="offset points",
