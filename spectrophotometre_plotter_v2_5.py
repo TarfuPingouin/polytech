@@ -37,8 +37,19 @@ plt.figure(figsize=(10, 6))
 plt.subplot(2, 1, 1)
 plt.plot(x, y, label="Original", color='blue')
 plt.scatter(extrema_x, extrema_y, color='black', marker='x', label='Extrema')
+# Affichage des longueurs d'onde (un seul label par tranche de 25 nm)
+labeled_bins = set()
+for x_val, y_val in zip(extrema_x, extrema_y):
+    bin_key = int(x_val // 50)
+    if bin_key not in labeled_bins:
+        plt.annotate(f"{x_val:.0f} nm", xy=(x_val, y_val),
+                     xytext=(0, 10), textcoords="offset points",
+                     ha='center', fontsize=8, color='black')
+        labeled_bins.add(bin_key)
+
+
 plt.xlabel("Longueur d’onde (nm)")
-plt.ylabel("Absorbance")
+plt.ylabel("Transmission")
 plt.title("Spectre UV-Visible - " + nom)
 plt.legend()
 plt.grid(True)
@@ -48,7 +59,7 @@ plt.plot(x, dy_dx, color='red', label="d(Absorbance)/dλ")
 plt.axhline(0, color='gray', linestyle='--', linewidth=0.8)
 plt.scatter(extrema_x, dy_dx[zero_crossings + 1], color='black', marker='x')
 plt.xlabel("Longueur d’onde (nm)")
-plt.ylabel("d(Absorbance)/d(λ)")
+plt.ylabel("d(Transmission)/d(λ)")
 plt.title("Dérivée du spectre")
 plt.grid(True)
 
