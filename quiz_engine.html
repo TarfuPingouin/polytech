@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quizz Engine — Vrai/Faux & QCM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #14141a;
+    --surface2: #1c1c25;
+    --border: #2a2a35;
+    --border2: #3a3a48;
+    --text: #f0ebe0;
+    --muted: #8a8595;
+    --sub: #b5afa0;
+    --accent: #d97757;       /* terre cuite */
+    --accent-dim: rgba(217,119,87,.14);
+    --accent-soft: rgba(217,119,87,.08);
+    --vrai: #7cc97c;
+    --vrai-dim: rgba(124,201,124,.10);
+    --faux: #d96666;
+    --faux-dim: rgba(217,102,102,.10);
+    --gold: #e8c547;
+    --r: 14px;
+    --rs: 9px;
+    --display: 'Fraunces', Georgia, serif;
+    --body: 'Geist', system-ui, sans-serif;
+    --mono: 'Geist Mono', ui-monospace, monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Ambient grain & gradient */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(217,119,87,.06), transparent 60%),
+      radial-gradient(ellipse 60% 80% at 100% 100%, rgba(232,197,71,.04), transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ─────────────────────────── EMPTY STATE ─────────────────────────── */
+  #empty-state {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem 1.2rem; position: relative; z-index: 1;
+  }
+  .hero {
+    max-width: 640px; width: 100%; text-align: center;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-dim);
+    padding: .35rem .85rem;
+    border-radius: 99px;
+    margin-bottom: 1.4rem;
+  }
+  .hero h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(2.4rem, 6vw, 3.8rem);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    margin-bottom: .9rem;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .hero .lede {
+    color: var(--sub);
+    font-size: 1.02rem;
+    font-weight: 300;
+    margin-bottom: 2.4rem;
+    max-width: 480px; margin-left: auto; margin-right: auto;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 18px;
+    background: var(--surface);
+    padding: 3rem 2rem;
+    transition: all .2s ease;
+    cursor: pointer;
+    margin-bottom: 1.2rem;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.dragging {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    transform: translateY(-2px);
+  }
+  .dropzone.dragging { border-style: solid; }
+  .dz-icon {
+    font-size: 2.2rem;
+    margin-bottom: .8rem;
+    display: block;
+    filter: grayscale(.3);
+  }
+  .dz-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin-bottom: .4rem;
+  }
+  .dz-sub {
+    color: var(--muted);
+    font-size: .87rem;
+  }
+  .dz-sub b { color: var(--accent); font-weight: 500; }
+
+  .actions-row {
+    display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .btn-secondary {
+    font-family: var(--body);
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--sub);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: .55rem 1.1rem;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex; align-items: center; gap: .4rem;
+  }
+  .btn-secondary:hover {
+    color: var(--accent); border-color: var(--accent);
+  }
+
+  .error-msg {
+    margin-top: 1rem;
+    padding: .85rem 1.1rem;
+    background: var(--faux-dim);
+    border: 1px solid rgba(217,102,102,.3);
+    border-radius: var(--rs);
+    color: #f8c5c5;
+    font-size: .85rem;
+    text-align: left;
+    font-family: var(--mono);
+  }
+
+  /* ─── Paste-JSON area ─── */
+  .or-divider {
+    display: flex; align-items: center; gap: .8rem;
+    margin: 1.4rem 0 1.2rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .paste-zone {
+    background: var(--surface);
+    border: 1.5px dashed var(--border2);
+    border-radius: 18px;
+    padding: 1.4rem 1.4rem 1.2rem;
+    text-align: left;
+    transition: border-color .2s ease;
+  }
+  .paste-zone:focus-within {
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .paste-zone .pz-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: .25rem;
+    text-align: center;
+  }
+  .paste-zone .pz-sub {
+    color: var(--muted);
+    font-size: .8rem;
+    text-align: center;
+    margin-bottom: .9rem;
+  }
+  .paste-zone textarea {
+    width: 100%;
+    min-height: 130px;
+    max-height: 280px;
+    padding: .85rem 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.55;
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .paste-zone textarea::placeholder { color: var(--muted); opacity: .55; }
+  .paste-zone textarea:focus { border-color: var(--accent); }
+  .paste-zone .pz-actions {
+    display: flex; gap: .5rem; margin-top: .8rem; align-items: center;
+  }
+  .pz-load-btn {
+    flex: 1;
+    font-family: var(--body);
+    font-size: .9rem;
+    font-weight: 600;
+    padding: .75rem 1.1rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #0c0c0e;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .pz-load-btn:hover { background: #e08a6c; border-color: #e08a6c; }
+  .pz-load-btn:disabled {
+    opacity: .35; cursor: default;
+    background: transparent; color: var(--muted);
+  }
+  .pz-clear-btn {
+    font-family: var(--body);
+    font-size: .82rem;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: .65rem .9rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .pz-clear-btn:hover { color: var(--faux); border-color: var(--faux); }
+
+  /* ─────────────────────────── QUIZ HEADER ─────────────────────────── */
+  #quiz-state { position: relative; z-index: 1; }
+
+  .qheader {
+    padding: 2.4rem 1.5rem 1.6rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .qheader h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+    letter-spacing: -.02em;
+    line-height: 1.1;
+  }
+  .qheader h1 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .qheader .qsub {
+    color: var(--sub);
+    font-size: .88rem;
+    margin-top: .45rem;
+    font-weight: 300;
+  }
+  .qheader .qmeta {
+    margin-top: .9rem;
+    display: inline-flex; gap: 1.2rem; align-items: center;
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .qheader .qmeta span { display: inline-flex; align-items: center; gap: .35rem; }
+
+  /* ─────────────────────────── TOOLBAR ─────────────────────────── */
+  .toolbar-wrap {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(12,12,14,.93);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabs {
+    display: flex; gap: .35rem;
+    padding: .65rem 1.2rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .03em;
+    padding: .42rem .9rem;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: .35rem;
+  }
+  .tab:hover { color: var(--text); border-color: var(--border2); }
+  .tab.active {
+    background: var(--accent);
+    color: #0c0c0e;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .tab .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 17px; padding: 0 5px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.18);
+    font-size: .62rem;
+    font-weight: 600;
+  }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: .8rem; padding: .65rem 1.2rem;
+  }
+
+  .scores {
+    display: flex; gap: 1rem;
+    font-family: var(--mono); font-size: .75rem;
+  }
+  .sc { color: var(--muted); }
+  .sc b { font-weight: 600; margin-left: .25rem; }
+  .sc.ok b { color: var(--vrai); }
+  .sc.wr b { color: var(--faux); }
+  .sc.tot b { color: var(--accent); }
+
+  .switch-group { display: flex; gap: .35rem; align-items: center; }
+  .switch {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: .35rem .75rem;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .switch:hover { color: var(--text); border-color: var(--border2); }
+  .switch.on {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filters { display: flex; gap: .3rem; flex-wrap: wrap; }
+  .filter-btn {
+    font-family: var(--body);
+    font-size: .76rem;
+    padding: .35rem .8rem;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--border2); }
+  .filter-btn.on {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .action-btn {
+    font-family: var(--body);
+    font-size: .78rem;
+    font-weight: 500;
+    padding: .4rem .9rem;
+    border-radius: 99px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--sub);
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex; align-items: center; gap: .35rem;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.danger:hover { border-color: var(--faux); color: var(--faux); }
+
+  .progress-track {
+    height: 2px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+    width: 0;
+  }
+
+  /* ─────────────────────────── MAIN ─────────────────────────── */
+  main { max-width: 820px; margin: 0 auto; padding: 1.6rem 1.1rem 6rem; }
+
+  /* Chapter head */
+  .ch-head {
+    display: flex; gap: 1.1rem;
+    padding: 1.4rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    margin-bottom: 1.4rem;
+    position: relative; overflow: hidden;
+  }
+  .ch-head::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 100% at 0 50%, var(--accent-dim), transparent 70%);
+    pointer-events: none;
+  }
+  .ch-icon {
+    font-size: 1.9rem; line-height: 1;
+    flex-shrink: 0;
+    filter: saturate(.85);
+  }
+  .ch-meta { flex: 1; min-width: 0; }
+  .ch-meta h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.25rem;
+    letter-spacing: -.01em;
+  }
+  .ch-meta p {
+    color: var(--sub);
+    font-size: .85rem;
+    font-weight: 300;
+    margin-top: .25rem;
+  }
+  .ch-prog {
+    margin-top: .8rem;
+    display: flex; align-items: center; gap: .7rem;
+  }
+  .ch-prog-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ch-prog-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .35s;
+    width: 0;
+  }
+  .ch-prog-label {
+    font-family: var(--mono);
+    font-size: .7rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1.3rem 1.5rem;
+    margin-bottom: .8rem;
+    transition: border-color .18s, transform .12s;
+    animation: slideUp .35s ease both;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  .card.revealed.ok { border-color: var(--vrai); background: var(--vrai-dim); }
+  .card.revealed.ko { border-color: var(--faux); background: var(--faux-dim); }
+  .card.hide { display: none; }
+
+  .qnum {
+    font-family: var(--mono);
+    font-size: .65rem;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: .55rem;
+  }
+  .stmt {
+    font-size: .98rem;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    font-weight: 400;
+  }
+  .choices { display: flex; gap: .7rem; }
+  .choice {
+    flex: 1;
+    padding: .65rem .8rem;
+    border-radius: var(--rs);
+    font-family: var(--body);
+    font-size: .87rem;
+    font-weight: 500;
+    border: 1px solid;
+    background: transparent;
+    cursor: pointer;
+    transition: all .14s;
+  }
+  .choice.vrai { border-color: rgba(124,201,124,.28); color: var(--vrai); }
+  .choice.faux { border-color: rgba(217,102,102,.28); color: var(--faux); }
+  .choice.vrai:hover:not(:disabled) {
+    background: rgba(124,201,124,.1);
+    border-color: var(--vrai);
+  }
+  .choice.faux:hover:not(:disabled) {
+    background: rgba(217,102,102,.1);
+    border-color: var(--faux);
+  }
+  .choice:disabled { cursor: default; opacity: .35; }
+  .choice.win-correct {
+    opacity: 1 !important;
+    font-weight: 700;
+  }
+  .choice.user-pick { opacity: 1 !important; }
+
+  .feedback {
+    margin-top: .9rem;
+    padding: .8rem 1rem;
+    border-radius: var(--rs);
+    font-size: .85rem;
+    line-height: 1.55;
+    display: none;
+    animation: fadeIn .25s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .feedback.show { display: block; }
+  .feedback.ok-fb {
+    background: rgba(124,201,124,.07);
+    border-left: 3px solid var(--vrai);
+    color: #b8e8b8;
+  }
+  .feedback.ko-fb {
+    background: rgba(217,102,102,.07);
+    border-left: 3px solid var(--faux);
+    color: #f5b8b8;
+  }
+  .feedback strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: .35rem;
+    opacity: .85;
+    font-weight: 600;
+  }
+
+  /* ─────────────────── EXAM MODE ─────────────────── */
+  .exam-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 2rem 2rem;
+    animation: slideUp .35s ease both;
+  }
+  .exam-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-dim);
+    padding: .25rem .7rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+  .exam-num {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+    margin-bottom: .85rem;
+  }
+  .exam-stmt {
+    font-size: 1.1rem;
+    line-height: 1.55;
+    margin-bottom: 1.6rem;
+  }
+  .nav-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 1.3rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .nav-btn {
+    font-family: var(--body);
+    font-size: .87rem;
+    font-weight: 500;
+    padding: .7rem 1.4rem;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all .18s;
+  }
+  .nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .nav-btn:disabled { opacity: .35; cursor: default; }
+  .nav-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0c0c0e;
+    font-weight: 600;
+  }
+  .nav-btn.primary:hover:not(:disabled) {
+    background: #e08a6c;
+    border-color: #e08a6c;
+    color: #0c0c0e;
+  }
+  .exam-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+
+  /* ─────────────────── FINAL RESULTS ─────────────────── */
+  .results-panel {
+    max-width: 720px; margin: 2rem auto 5rem;
+    padding: 0 1.1rem;
+    animation: slideUp .4s ease both;
+  }
+  .results-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 2.6rem 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .results-emoji { font-size: 3.5rem; margin-bottom: .8rem; }
+  .results-title {
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.7rem;
+    margin-bottom: .4rem;
+  }
+  .results-fraction {
+    font-family: var(--display);
+    font-size: 4rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    margin: .9rem 0 .4rem;
+    letter-spacing: -.02em;
+  }
+  .results-pct {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .95rem;
+    margin-bottom: 1.4rem;
+  }
+  .results-msg {
+    color: var(--sub);
+    font-size: .92rem;
+    line-height: 1.55;
+    max-width: 420px; margin: 0 auto 1.6rem;
+  }
+  .results-actions {
+    display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap;
+  }
+
+  .review-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .review-section h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: .25rem;
+  }
+  .review-section .review-meta {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--muted);
+    margin-bottom: .9rem;
+  }
+  .review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+    gap: .4rem;
+    max-width: 100%;
+  }
+  .review-dot {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: .65rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform .12s;
+  }
+  .review-dot:hover { transform: scale(1.15); }
+  .dot-ok { background: rgba(124,201,124,.22); color: var(--vrai); }
+  .dot-ko { background: rgba(217,102,102,.22); color: var(--faux); }
+  .dot-skip { background: var(--surface2); color: var(--muted); }
+
+  /* ─────────────────── MODAL ─────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.78);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 1rem;
+    animation: fadeIn .25s ease;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 18px;
+    padding: 2.4rem 2rem;
+    text-align: center;
+    max-width: 420px;
+    width: 100%;
+    position: relative;
+    animation: slideUp .3s ease both;
+  }
+  .modal.wide { max-width: 720px; text-align: left; }
+  .mclose {
+    position: absolute; top: .9rem; right: .9rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: .95rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .mclose:hover { color: var(--text); border-color: var(--text); }
+
+  .modal .m-emoji { font-size: 3.2rem; margin-bottom: .6rem; }
+  .modal .m-score {
+    font-family: var(--display);
+    font-size: 3.5rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .modal .m-label { color: var(--sub); font-size: .9rem; margin-top: .3rem; }
+  .modal .m-msg { margin-top: 1rem; font-size: .9rem; color: var(--sub); line-height: 1.55; }
+
+  /* Prompt modal */
+  .prompt-modal h2 {
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.6rem;
+    margin-bottom: .4rem;
+  }
+  .prompt-modal .lede {
+    color: var(--sub);
+    font-size: .88rem;
+    margin-bottom: 1.3rem;
+    line-height: 1.55;
+  }
+  .prompt-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.6;
+    color: var(--sub);
+    max-height: 380px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin-bottom: 1rem;
+  }
+  .prompt-box::-webkit-scrollbar { width: 8px; }
+  .prompt-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  .copy-btn {
+    width: 100%;
+    font-family: var(--body);
+    font-size: .9rem;
+    font-weight: 500;
+    padding: .8rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .copy-btn:hover { background: var(--accent-dim); }
+  .copy-btn.copied {
+    background: var(--vrai-dim);
+    border-color: var(--vrai);
+    color: var(--vrai);
+  }
+
+  /* ─── Prompt modal tabs (VF / QCM) ─── */
+  .prompt-tabs {
+    display: flex; gap: .3rem;
+    padding: .25rem;
+    margin-bottom: 1.1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .prompt-tab {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .04em;
+    padding: .55rem .7rem;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .prompt-tab:hover { color: var(--text); }
+  .prompt-tab.on {
+    background: var(--accent);
+    color: #0c0c0e;
+    font-weight: 600;
+  }
+
+  /* ─── QCM choices (4 buttons) ─── */
+  .choices.qcm-choices {
+    flex-direction: column;
+    gap: .55rem;
+  }
+  .choice.qcm {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    text-align: left;
+    padding: .7rem .85rem;
+    border-color: var(--border2);
+    color: var(--text);
+    font-weight: 400;
+    font-size: .9rem;
+    line-height: 1.4;
+  }
+  .choice.qcm:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .choice.qcm .qcm-letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    color: var(--accent);
+    transition: all .15s;
+  }
+  .choice.qcm:hover:not(:disabled) .qcm-letter {
+    border-color: var(--accent);
+  }
+  .choice.qcm .qcm-text { flex: 1; }
+  .choice.qcm:disabled { opacity: .35; cursor: default; }
+  .choice.qcm.win-correct {
+    opacity: 1 !important;
+    border-color: var(--vrai);
+    background: rgba(124,201,124,.12);
+    color: var(--vrai);
+    font-weight: 600;
+  }
+  .choice.qcm.win-correct .qcm-letter {
+    background: var(--vrai);
+    border-color: var(--vrai);
+    color: #0c0c0e;
+  }
+  .choice.qcm.user-pick:not(.win-correct) {
+    opacity: 1 !important;
+    border-color: var(--faux);
+    background: rgba(217,102,102,.12);
+    color: var(--faux);
+  }
+  .choice.qcm.user-pick:not(.win-correct) .qcm-letter {
+    background: var(--faux);
+    border-color: var(--faux);
+    color: #0c0c0e;
+  }
+
+  /* Mobile tweaks */
+  @media (max-width: 600px) {
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .scores, .switch-group, .filters, .actions { justify-content: center; }
+    main { padding: 1.2rem .9rem 5rem; }
+    .ch-head { flex-direction: column; }
+    .results-card { padding: 2rem 1.2rem; }
+    .exam-card { padding: 1.5rem 1.2rem; }
+  }
+.site-footer {
+  text-align: center;
+  padding: 2rem 1rem 3rem;
+  color: var(--muted);
+  font-size: .78rem;
+  font-family: var(--mono);
+  letter-spacing: .02em;
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+  position: relative;
+  z-index: 1;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ EMPTY STATE ═══════════════════════════ -->
+<section id="empty-state">
+  <div class="hero">
+    <span class="eyebrow" id="hero-eyebrow">Quizz Engine</span>
+    <h1>Quizz <em>Engine.</em></h1>
+    <p class="lede">Vrai/faux ou QCM, n'importe quel cours.<br>Charge un fichier JSON, <em style="color:var(--accent);font-style:normal;">colle-le directement</em>, ou pars d'un exemple.</p>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept=".json,application/json" style="display:none">
+      <span class="dz-icon">⌬</span>
+      <div class="dz-title">Dépose ton fichier <em>.json</em></div>
+      <div class="dz-sub">ou <b>clique pour parcourir</b></div>
+    </div>
+
+    <div class="or-divider">ou</div>
+
+    <div class="paste-zone">
+      <div class="pz-title">Colle ton JSON ici</div>
+      <div class="pz-sub">Pas besoin de sauvegarder de fichier — copie-colle directement la réponse de l'IA.</div>
+      <textarea id="paste-input" spellcheck="false" placeholder='{
+  "title": "Mon quiz",
+  "chapters": [ ... ]
+}'></textarea>
+      <div class="pz-actions">
+        <button class="pz-load-btn" id="pz-load" disabled>Charger le quiz</button>
+        <button class="pz-clear-btn" id="pz-clear" type="button">Effacer</button>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn-secondary" id="btn-show-prompt">
+        <span>✦</span> Voir le prompt pour générer un quiz
+      </button>
+      <button class="btn-secondary" id="btn-load-demo">
+        <span>↯</span> Charger un exemple
+      </button>
+    </div>
+
+    <div class="error-msg hidden" id="empty-error"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ QUIZ STATE ═══════════════════════════ -->
+<section id="quiz-state" class="hidden">
+  <header class="qheader">
+    <h1 id="q-title">Quiz</h1>
+    <p class="qsub" id="q-subtitle"></p>
+    <div class="qmeta">
+      <span id="q-meta-chapters">– chapitres</span>
+      <span>·</span>
+      <span id="q-meta-questions">– questions</span>
+    </div>
+  </header>
+
+  <div class="toolbar-wrap">
+    <div class="tabs" id="tabs"></div>
+    <div class="toolbar">
+      <div class="scores">
+        <div class="sc ok">Correct<b id="sc-ok">0</b></div>
+        <div class="sc wr">Erreurs<b id="sc-wr">0</b></div>
+        <div class="sc tot">Total<b id="sc-tot">0</b></div>
+      </div>
+
+      <div class="switch-group">
+        <button class="switch on" id="sw-revision">Révision</button>
+        <button class="switch" id="sw-exam">Examen</button>
+        <button class="switch" id="sw-random" title="Mélanger l'ordre des questions">⇄ Aléatoire</button>
+      </div>
+
+      <div class="filters">
+        <button class="filter-btn on" data-filter="all">Toutes</button>
+        <button class="filter-btn" data-filter="unanswered">Non répondues</button>
+        <button class="filter-btn" data-filter="wrong">Mes erreurs</button>
+      </div>
+
+      <div class="actions">
+        <button class="action-btn" id="btn-reveal">Révéler le chapitre</button>
+        <button class="action-btn" id="btn-results">Voir le score</button>
+        <button class="action-btn" id="btn-export">⬇ Exporter</button>
+        <button class="action-btn danger" id="btn-reset">↺ Recommencer</button>
+        <button class="action-btn" id="btn-load-other">⌬ Autre quiz</button>
+      </div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <main id="main">
+    <!-- Revision mode container -->
+    <div id="revision-container"></div>
+
+    <!-- Exam mode container -->
+    <div id="exam-container" class="hidden">
+      <div class="exam-card" id="exam-card">
+        <div class="exam-tag" id="exam-tag"></div>
+        <div class="exam-num" id="exam-num"></div>
+        <p class="exam-stmt" id="exam-stmt"></p>
+        <div class="choices" id="exam-choices"></div>
+        <div class="feedback" id="exam-feedback"></div>
+        <div class="nav-row">
+          <button class="nav-btn" id="exam-prev">← Précédent</button>
+          <span id="exam-status" style="color:var(--muted);font-size:.82rem;font-family:var(--mono);"></span>
+          <button class="nav-btn primary" id="exam-next">Suivant →</button>
+        </div>
+      </div>
+      <div class="exam-empty hidden" id="exam-empty">Aucune question ne correspond à ce filtre.</div>
+    </div>
+
+    <!-- Final results -->
+    <div id="results-container" class="hidden"></div>
+  </main>
+</section>
+
+<!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
+
+<!-- Chapter completed modal -->
+<div class="modal-overlay" id="chapter-modal">
+  <div class="modal">
+    <button class="mclose" id="cm-close">✕</button>
+    <div class="m-emoji" id="cm-emoji"></div>
+    <div class="m-score" id="cm-score"></div>
+    <div class="m-label">sur <span id="cm-total"></span> questions</div>
+    <div class="m-msg" id="cm-msg"></div>
+  </div>
+</div>
+
+<!-- Prompt modal -->
+<div class="modal-overlay" id="prompt-modal">
+  <div class="modal wide prompt-modal">
+    <button class="mclose" id="pm-close">✕</button>
+    <h2>Le prompt à donner à l'IA</h2>
+    <p class="lede">Copie ce prompt, colle-le dans une nouvelle conversation avec ton IA (Claude, ChatGPT, Gemini…) <b style="color:var(--accent);">en joignant ton ou tes fichiers de cours</b>. L'IA renverra du JSON pur que tu pourras coller directement dans la zone <em>« Colle ton JSON ici »</em> de cette page.</p>
+    <div class="prompt-tabs">
+      <button class="prompt-tab on" data-prompt="vf">✓✗ Vrai / Faux</button>
+      <button class="prompt-tab" data-prompt="qcm">⊞ QCM (4 choix)</button>
+    </div>
+    <pre class="prompt-box" id="prompt-text"></pre>
+    <button class="copy-btn" id="copy-btn">⎘ Copier le prompt</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════ VERSION ═══════════════════════════
+const VERSION = 'v2.0';
+
+// ═══════════════════════════ PROMPT VRAI/FAUX ═══════════════════════════
+const GENERATION_PROMPT_VF = `Tu vas générer un quiz vrai/faux à partir du ou des fichiers joints à ce message (PDF, document, notes, image, etc.). Si plusieurs fichiers sont fournis, traite-les comme un seul corpus de cours cohérent.
+
+⚠️ RÈGLE ABSOLUE — RÉPONSE = JSON BRUT, RIEN D'AUTRE
+Ta réponse doit commencer par le caractère { et finir par le caractère }. Aucun texte avant. Aucun texte après. Pas de phrase d'introduction du type "Voici le JSON" ou "J'ai bien compris". Pas de phrase de conclusion. Pas de balises de code \`\`\`json ni \`\`\`. Pas de markdown. Rien que du JSON valide, prêt à être collé tel quel dans un parseur. Si tu ajoutes ne serait-ce qu'un mot hors du JSON, l'application qui reçoit ta réponse plantera.
+
+SCHÉMA EXACT À RESPECTER
+
+{
+  "title": "Titre du quiz",
+  "subtitle": "Matière, niveau ou contexte (optionnel mais recommandé)",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Ch.1 — Titre du chapitre",
+      "icon": "🔬",
+      "description": "Brève description thématique (optionnel)",
+      "questions": [
+        {
+          "statement": "Affirmation à juger vraie ou fausse.",
+          "answer": true,
+          "explanation": "Justification pédagogique : rappelle le bon concept, cite auteurs/études quand pertinent, explicite pourquoi c'est vrai ou faux."
+        }
+      ]
+    }
+  ]
+}
+
+CONTRAINTES TECHNIQUES
+- Encodage UTF-8, guillemets doubles standards, pas de virgules traînantes.
+- "answer" doit être un booléen JSON (true ou false), JAMAIS une chaîne "true" ni "vrai".
+- Les "id" de chapitres sont uniques et de la forme ch1, ch2, ch3, …
+- Les champs "subtitle", "icon" et "description" sont optionnels — omets-les si tu n'as rien de pertinent à mettre.
+
+CONTRAINTES PÉDAGOGIQUES
+- Découpe le quiz en chapitres logiques calqués sur la structure du cours fourni. S'il n'y a pas de structure claire, propose un découpage thématique pertinent.
+- Vise environ 15 à 25 questions par chapitre, équilibrées à peu près 50/50 entre énoncés vrais et énoncés faux.
+- Énoncés clairs et sans ambiguïté. Évite les pièges purement formels (négations imbriquées, formulations volontairement obscures).
+- Les explications doivent ENSEIGNER, pas simplement juger. Rappelle le bon concept, cite les auteurs et études quand c'est pertinent, explique pourquoi l'énoncé est correct ou incorrect.
+- Varie les types de questions : définitions, mécanismes, études citées, distinctions conceptuelles, exceptions, exemples concrets.
+- Choisis un emoji pertinent pour chaque "icon" de chapitre.
+- Adapte le niveau au cours fourni (lycée, licence, master, professionnel…).
+
+RAPPEL FINAL : ta toute première sortie doit être { et la dernière }. Aucun caractère avant ou après.`;
+
+// ═══════════════════════════ PROMPT QCM ═══════════════════════════
+const GENERATION_PROMPT_QCM = `Tu vas générer un quiz QCM (questions à choix multiples, EXACTEMENT 4 propositions par question, une seule bonne réponse) à partir du ou des fichiers joints à ce message (PDF, document, notes, image, etc.). Si plusieurs fichiers sont fournis, traite-les comme un seul corpus de cours cohérent.
+
+⚠️ RÈGLE ABSOLUE — RÉPONSE = JSON BRUT, RIEN D'AUTRE
+Ta réponse doit commencer par le caractère { et finir par le caractère }. Aucun texte avant. Aucun texte après. Pas de phrase d'introduction du type "Voici le JSON" ou "J'ai bien compris". Pas de phrase de conclusion. Pas de balises de code \`\`\`json ni \`\`\`. Pas de markdown. Rien que du JSON valide, prêt à être collé tel quel dans un parseur. Si tu ajoutes ne serait-ce qu'un mot hors du JSON, l'application qui reçoit ta réponse plantera.
+
+SCHÉMA EXACT À RESPECTER
+
+{
+  "title": "Titre du quiz",
+  "subtitle": "Matière, niveau ou contexte (optionnel mais recommandé)",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Ch.1 — Titre du chapitre",
+      "icon": "🔬",
+      "description": "Brève description thématique (optionnel)",
+      "questions": [
+        {
+          "statement": "Énoncé ou question (avec point d'interrogation si c'est une question).",
+          "choices": [
+            "Première proposition",
+            "Deuxième proposition",
+            "Troisième proposition",
+            "Quatrième proposition"
+          ],
+          "answer": 0,
+          "explanation": "Justification pédagogique : pourquoi cette réponse est correcte, et idéalement pourquoi le ou les distracteurs principaux sont faux."
+        }
+      ]
+    }
+  ]
+}
+
+CONTRAINTES TECHNIQUES
+- Encodage UTF-8, guillemets doubles standards, pas de virgules traînantes.
+- "choices" doit contenir EXACTEMENT 4 propositions — pas 3, pas 5.
+- "answer" est un ENTIER JSON (number, pas string) : 0 pour la 1re proposition, 1 pour la 2e, 2 pour la 3e, 3 pour la 4e.
+- Les "id" de chapitres sont uniques et de la forme ch1, ch2, ch3, …
+- Les champs "subtitle", "icon" et "description" sont optionnels.
+
+CONTRAINTES PÉDAGOGIQUES
+- Découpe le quiz en chapitres logiques calqués sur la structure du cours fourni.
+- Vise environ 10 à 20 questions par chapitre.
+- VARIE la position de la bonne réponse sur l'ensemble du quiz : ne mets pas systématiquement la bonne en position 0. Distribue-les à peu près équitablement entre 0, 1, 2 et 3.
+- Les distracteurs (mauvaises propositions) doivent être PLAUSIBLES et issus du cours, pas des absurdités évidentes. Un bon distracteur partage le vocabulaire ou la structure de la bonne réponse, mais contient une erreur, une confusion classique, ou une inversion typique de ce sujet.
+- Évite les propositions méta du type "Toutes les réponses sont correctes", "Aucune de ces réponses", "Les réponses A et B" — elles dégradent le format.
+- L'énoncé doit être une vraie question ou une affirmation à compléter, pas un énoncé vrai/faux déguisé en QCM.
+- Les explications enseignent : elles expliquent pourquoi la bonne réponse est bonne, et idéalement pourquoi au moins un des distracteurs principaux est faux.
+- Choisis un emoji pertinent pour chaque "icon" de chapitre.
+- Adapte le niveau au cours fourni (lycée, licence, master, professionnel…).
+
+RAPPEL FINAL : ta toute première sortie doit être { et la dernière }. Aucun caractère avant ou après.`;
+
+// Alias pour compatibilité interne
+const GENERATION_PROMPT = GENERATION_PROMPT_VF;
+
+// ═══════════════════════════ DEMO QUIZ ═══════════════════════════
+const DEMO_QUIZ = {
+  title: "Quiz de démonstration",
+  subtitle: "Vrai/Faux + QCM · 3 mini-chapitres",
+  chapters: [
+    {
+      id: "ch1", title: "Ch.1 — Géographie (Vrai/Faux)", icon: "🌍",
+      description: "Quelques affirmations à valider sur les pays et capitales.",
+      questions: [
+        { statement: "La capitale de l'Australie est Sydney.", answer: false, explanation: "La capitale de l'Australie est Canberra. Sydney est la plus grande ville mais n'est pas capitale." },
+        { statement: "Le Nil traverse l'Égypte du sud au nord.", answer: true, explanation: "Le Nil prend sa source en Afrique de l'Est et se jette en Méditerranée au nord de l'Égypte." },
+        { statement: "L'Islande fait partie de l'Union européenne.", answer: false, explanation: "L'Islande n'est pas membre de l'UE, bien qu'elle fasse partie de l'espace Schengen et de l'EEE." },
+        { statement: "Le mont Everest culmine à environ 8 849 m.", answer: true, explanation: "L'altitude officielle a été révisée en 2020 à 8 848,86 m, soit ~8 849 m." }
+      ]
+    },
+    {
+      id: "ch2", title: "Ch.2 — Sciences (Vrai/Faux)", icon: "🔬",
+      description: "Notions élémentaires de physique et biologie.",
+      questions: [
+        { statement: "L'eau bout à 100 °C au niveau de la mer, à pression atmosphérique standard.", answer: true, explanation: "C'est exact pour 1013 hPa. L'altitude (donc une pression plus faible) abaisse la température d'ébullition." },
+        { statement: "Les baleines sont des poissons.", answer: false, explanation: "Les baleines sont des mammifères marins : elles respirent de l'air, allaitent leurs petits et sont à sang chaud." },
+        { statement: "La lumière voyage à environ 300 000 km/s dans le vide.", answer: true, explanation: "La vitesse exacte est de 299 792 458 m/s, soit environ 3 × 10⁸ m/s." }
+      ]
+    },
+    {
+      id: "ch3", title: "Ch.3 — Histoire (QCM)", icon: "📜",
+      description: "Questions à choix multiples — une seule bonne réponse parmi quatre.",
+      questions: [
+        {
+          statement: "En quelle année a eu lieu la prise de la Bastille ?",
+          choices: ["1789", "1791", "1792", "1799"],
+          answer: 0,
+          explanation: "La prise de la Bastille a eu lieu le 14 juillet 1789. 1791 marque la première Constitution, 1792 la proclamation de la République et 1799 le coup d'État de Bonaparte."
+        },
+        {
+          statement: "Qui a peint « La Nuit étoilée » (1889) ?",
+          choices: ["Claude Monet", "Vincent van Gogh", "Paul Cézanne", "Pierre-Auguste Renoir"],
+          answer: 1,
+          explanation: "« La Nuit étoilée » est de Vincent van Gogh, peinte depuis sa chambre à l'asile de Saint-Rémy-de-Provence. Les autres sont également impressionnistes/post-impressionnistes, ce qui en fait des distracteurs plausibles."
+        },
+        {
+          statement: "Quel traité, signé en 1957, fonde la Communauté économique européenne ?",
+          choices: ["Le traité de Paris", "Le traité de Maastricht", "Le traité de Rome", "Le traité de Lisbonne"],
+          answer: 2,
+          explanation: "Le traité de Rome (1957) fonde la CEE. Le traité de Paris (1951) avait créé la CECA, Maastricht (1992) crée l'Union européenne, et Lisbonne (2007) la réforme institutionnellement."
+        }
+      ]
+    }
+  ]
+};
+
+// ═══════════════════════════ STATE ═══════════════════════════
+let quiz = null;
+let answers = {};         // { 'ch1-0': true|false|null }
+let order = {};           // { 'ch1': [0,1,2,...] } — ordre d'affichage par chapitre
+let activeCh = null;
+let activeFilter = 'all';
+let mode = 'revision';    // 'revision' | 'exam'
+let randomized = false;
+let examIndex = 0;
+let modalsShown = {};     // { 'ch1': true } — pour ne pas re-afficher la modal
+
+const $ = (id) => document.getElementById(id);
+const k = (cid, i) => `${cid}-${i}`;
+
+// ═══════════════════════════ FILE LOADING ═══════════════════════════
+function showError(msg) {
+  const el = $('empty-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function clearError() {
+  $('empty-error').classList.add('hidden');
+}
+
+function validateQuiz(data) {
+  if (!data || typeof data !== 'object') throw new Error("Le fichier doit contenir un objet JSON.");
+  if (!data.title || typeof data.title !== 'string') throw new Error("Champ 'title' manquant ou invalide.");
+
+  // Accepter un format plat (juste questions à la racine) → wrap en 1 chapitre
+  if (!data.chapters && Array.isArray(data.questions)) {
+    data.chapters = [{ id: 'ch1', title: data.title, questions: data.questions }];
+  }
+
+  if (!Array.isArray(data.chapters) || data.chapters.length === 0)
+    throw new Error("Le quiz doit contenir au moins un chapitre.");
+
+  data.chapters.forEach((ch, ci) => {
+    if (!ch.id) ch.id = `ch${ci + 1}`;
+    if (!ch.title) throw new Error(`Chapitre ${ci + 1} : titre manquant.`);
+    if (!Array.isArray(ch.questions) || ch.questions.length === 0)
+      throw new Error(`Chapitre "${ch.title}" : aucune question.`);
+    ch.questions.forEach((q, qi) => {
+      if (typeof q.statement !== 'string')
+        throw new Error(`Chapitre "${ch.title}", question ${qi + 1} : 'statement' manquant.`);
+
+      // Détection du type : présence d'un tableau 'choices' → QCM, sinon Vrai/Faux
+      if (Array.isArray(q.choices)) {
+        if (q.choices.length < 2)
+          throw new Error(`Chapitre "${ch.title}", question ${qi + 1} : un QCM doit avoir au moins 2 propositions.`);
+        q.choices = q.choices.map(c => String(c));
+        if (typeof q.answer !== 'number' || !Number.isInteger(q.answer) || q.answer < 0 || q.answer >= q.choices.length)
+          throw new Error(`Chapitre "${ch.title}", question ${qi + 1} : 'answer' doit être un entier entre 0 et ${q.choices.length - 1} (index de la bonne proposition).`);
+        q._type = 'qcm';
+      } else {
+        if (typeof q.answer !== 'boolean')
+          throw new Error(`Chapitre "${ch.title}", question ${qi + 1} : 'answer' doit être true ou false (ou ajouter un tableau 'choices' pour un QCM).`);
+        q._type = 'vf';
+      }
+      if (typeof q.explanation !== 'string') q.explanation = '';
+    });
+  });
+  return data;
+}
+
+function loadQuiz(data) {
+  try {
+    quiz = validateQuiz(data);
+  } catch (e) {
+    showError("Erreur : " + e.message);
+    return false;
+  }
+  clearError();
+  initState();
+  $('empty-state').classList.add('hidden');
+  $('quiz-state').classList.remove('hidden');
+  renderHeader();
+  renderTabs();
+  render();
+  window.scrollTo({ top: 0 });
+  return true;
+}
+
+function loadFromFile(file) {
+  if (!file.name.match(/\.json$/i)) {
+    showError("Le fichier doit avoir l'extension .json");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(stripFences(e.target.result));
+      loadQuiz(data);
+    } catch (err) {
+      showError("JSON invalide : " + err.message);
+    }
+  };
+  reader.onerror = () => showError("Impossible de lire le fichier.");
+  reader.readAsText(file);
+}
+
+// Tolère les habitudes des LLMs : ```json ... ``` ou ``` ... ``` autour du JSON,
+// et toute prose résiduelle avant le premier { ou après le dernier }.
+function stripFences(raw) {
+  if (!raw) return raw;
+  let s = String(raw).trim();
+  // Retire un BOM éventuel
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  // Retire ```json ... ``` ou ``` ... ```
+  const fence = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fence) s = fence[1].trim();
+  // Si du texte précède { ou suit }, on récupère du premier { au dernier } équilibré le plus large
+  const first = s.indexOf('{');
+  const last = s.lastIndexOf('}');
+  if (first > 0 || (last >= 0 && last < s.length - 1)) {
+    if (first !== -1 && last !== -1 && last > first) {
+      s = s.slice(first, last + 1);
+    }
+  }
+  return s.trim();
+}
+
+function loadFromText(raw) {
+  const cleaned = stripFences(raw);
+  if (!cleaned) {
+    showError("La zone de collage est vide.");
+    return false;
+  }
+  let data;
+  try {
+    data = JSON.parse(cleaned);
+  } catch (err) {
+    showError("JSON invalide : " + err.message + ". Vérifie que tu as bien copié l'intégralité de la réponse de l'IA, et qu'il n'y a pas de texte parasite.");
+    return false;
+  }
+  return loadQuiz(data);
+}
+
+// Drag & drop sur toute la page (pour le moment uniquement actif sur empty-state, mais on l'étend partout)
+function setupDropzone() {
+  const dz = $('dropzone');
+  const input = $('file-input');
+
+  dz.addEventListener('click', () => input.click());
+  input.addEventListener('change', (e) => {
+    if (e.target.files[0]) loadFromFile(e.target.files[0]);
+  });
+
+  ['dragenter', 'dragover'].forEach(ev => {
+    document.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dz.classList.add('dragging');
+    });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    document.addEventListener(ev, (e) => {
+      e.preventDefault();
+      if (ev === 'dragleave' && e.relatedTarget) return; // ignore inner leaves
+      dz.classList.remove('dragging');
+    });
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) loadFromFile(e.dataTransfer.files[0]);
+  });
+}
+
+// ═══════════════════════════ STATE INIT ═══════════════════════════
+function initState() {
+  answers = {};
+  order = {};
+  modalsShown = {};
+  activeCh = quiz.chapters[0].id;
+  activeFilter = 'all';
+  examIndex = 0;
+  quiz.chapters.forEach(ch => {
+    ch.questions.forEach((_, i) => { answers[k(ch.id, i)] = null; });
+    order[ch.id] = ch.questions.map((_, i) => i);
+  });
+  if (randomized) shuffleAllChapters();
+}
+
+function shuffleAllChapters() {
+  Object.keys(order).forEach(cid => {
+    const arr = order[cid].slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    order[cid] = arr;
+  });
+}
+
+function resetOrders() {
+  quiz.chapters.forEach(ch => {
+    order[ch.id] = ch.questions.map((_, i) => i);
+  });
+}
+
+// ═══════════════════════════ HEADER & TABS ═══════════════════════════
+function renderHeader() {
+  $('q-title').innerHTML = quiz.title.replace(/\//g, '<em>/</em>');
+  $('q-subtitle').textContent = quiz.subtitle || '';
+  $('q-subtitle').style.display = quiz.subtitle ? '' : 'none';
+  const totalQ = quiz.chapters.reduce((s, c) => s + c.questions.length, 0);
+  $('q-meta-chapters').textContent = `${quiz.chapters.length} chapitre${quiz.chapters.length > 1 ? 's' : ''}`;
+  $('q-meta-questions').textContent = `${totalQ} question${totalQ > 1 ? 's' : ''}`;
+}
+
+function renderTabs() {
+  const el = $('tabs');
+  el.innerHTML = '';
+  quiz.chapters.forEach(ch => {
+    const t = document.createElement('button');
+    t.className = 'tab' + (ch.id === activeCh ? ' active' : '');
+    t.dataset.ch = ch.id;
+    t.innerHTML = `${escapeHtml(ch.title)}<span class="badge">${ch.questions.length}</span>`;
+    t.addEventListener('click', () => {
+      activeCh = ch.id;
+      examIndex = 0;
+      hideResults();
+      render();
+    });
+    el.appendChild(t);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ═══════════════════════════ CHOICES HELPERS (VF + QCM) ═══════════════════════════
+// Représentation textuelle de la bonne réponse (utilisée dans le feedback)
+function formatAnswer(q) {
+  if (q._type === 'qcm') {
+    return String.fromCharCode(65 + q.answer) + ' — ' + q.choices[q.answer];
+  }
+  return q.answer ? 'VRAI' : 'FAUX';
+}
+
+// Construit le HTML du bloc de choix (2 boutons VF ou 4+ boutons QCM)
+function buildChoicesHtml(q) {
+  if (q._type === 'qcm') {
+    return `<div class="choices qcm-choices">${
+      q.choices.map((c, i) => `
+        <button class="choice qcm" data-v="${i}">
+          <span class="qcm-letter">${String.fromCharCode(65 + i)}</span>
+          <span class="qcm-text">${escapeHtml(c)}</span>
+        </button>`).join('')
+    }</div>`;
+  }
+  return `<div class="choices">
+    <button class="choice vrai" data-v="true">✓ Vrai</button>
+    <button class="choice faux" data-v="false">✗ Faux</button>
+  </div>`;
+}
+
+// Parse la valeur dataset.v d'un bouton selon le type de la question
+function parseChoiceValue(q, dataV) {
+  return q._type === 'qcm' ? parseInt(dataV, 10) : (dataV === 'true');
+}
+
+// Met à jour les boutons d'un container .choices pour refléter une réponse donnée
+function decorateAnsweredChoices(choicesContainer, q, given) {
+  const buttons = choicesContainer.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    const val = parseChoiceValue(q, btn.dataset.v);
+    if (val === q.answer) btn.classList.add('win-correct');
+    if (val === given) btn.classList.add('user-pick');
+  });
+}
+
+// ═══════════════════════════ RENDER ═══════════════════════════
+function render() {
+  // Update tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.ch === activeCh));
+
+  // Update mode switches
+  $('sw-revision').classList.toggle('on', mode === 'revision');
+  $('sw-exam').classList.toggle('on', mode === 'exam');
+  $('sw-random').classList.toggle('on', randomized);
+
+  // Update filter buttons
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('on', b.dataset.filter === activeFilter));
+
+  if (mode === 'revision') {
+    $('revision-container').classList.remove('hidden');
+    $('exam-container').classList.add('hidden');
+    renderRevision();
+  } else {
+    $('revision-container').classList.add('hidden');
+    $('exam-container').classList.remove('hidden');
+    renderExam();
+  }
+
+  updateScores();
+}
+
+function renderRevision() {
+  const cont = $('revision-container');
+  const ch = quiz.chapters.find(c => c.id === activeCh);
+  cont.innerHTML = '';
+
+  // Chapter head
+  const head = document.createElement('div');
+  head.className = 'ch-head';
+  head.innerHTML = `
+    <div class="ch-icon">${escapeHtml(ch.icon || '◆')}</div>
+    <div class="ch-meta">
+      <h2>${escapeHtml(ch.title)}</h2>
+      ${ch.description ? `<p>${escapeHtml(ch.description)}</p>` : ''}
+      <div class="ch-prog">
+        <div class="ch-prog-bar"><div class="ch-prog-fill" id="chf-${ch.id}"></div></div>
+        <div class="ch-prog-label" id="chl-${ch.id}">0 / ${ch.questions.length}</div>
+      </div>
+    </div>`;
+  cont.appendChild(head);
+
+  // Cards (ordre selon order[ch.id])
+  order[ch.id].forEach((qi, displayIdx) => {
+    const q = ch.questions[qi];
+    const key = k(ch.id, qi);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'card-' + key;
+    const given = answers[key];
+    if (given !== null) {
+      const ok = given === q.answer;
+      card.classList.add('revealed', ok ? 'ok' : 'ko');
+    }
+    const typeBadge = q._type === 'qcm' ? ' · QCM' : '';
+    card.innerHTML = `
+      <div class="qnum">Q${displayIdx + 1} · ${escapeHtml(ch.title)}${typeBadge}</div>
+      <div class="stmt">${escapeHtml(q.statement)}</div>
+      ${buildChoicesHtml(q)}
+      <div class="feedback" id="fb-${key}"></div>`;
+
+    // Wire les boutons
+    const choicesEl = card.querySelector('.choices');
+    choicesEl.querySelectorAll('.choice').forEach(btn => {
+      const val = parseChoiceValue(q, btn.dataset.v);
+      btn.addEventListener('click', () => answer(ch.id, qi, val));
+    });
+
+    // Si déjà répondu, décorer + afficher le feedback
+    if (given !== null) {
+      decorateAnsweredChoices(choicesEl, q, given);
+      const fb = card.querySelector('.feedback');
+      const ok = given === q.answer;
+      fb.className = 'feedback show ' + (ok ? 'ok-fb' : 'ko-fb');
+      fb.innerHTML = `<strong>${ok ? '✓ Correct' : '✗ Incorrect — Réponse : ' + escapeHtml(formatAnswer(q))}</strong>${escapeHtml(q.explanation)}`;
+    }
+    cont.appendChild(card);
+  });
+
+  applyFilter();
+  updateChapterProgress();
+}
+
+function renderExam() {
+  const ch = quiz.chapters.find(c => c.id === activeCh);
+  // Filtered list of question indices
+  const visibleIdx = order[ch.id].filter(qi => {
+    const key = k(ch.id, qi);
+    const q = ch.questions[qi];
+    if (activeFilter === 'unanswered') return answers[key] === null;
+    if (activeFilter === 'wrong') return answers[key] !== null && answers[key] !== q.answer;
+    return true;
+  });
+
+  if (visibleIdx.length === 0) {
+    $('exam-card').classList.add('hidden');
+    $('exam-empty').classList.remove('hidden');
+    return;
+  }
+  $('exam-card').classList.remove('hidden');
+  $('exam-empty').classList.add('hidden');
+
+  if (examIndex >= visibleIdx.length) examIndex = visibleIdx.length - 1;
+  if (examIndex < 0) examIndex = 0;
+
+  const qi = visibleIdx[examIndex];
+  const q = ch.questions[qi];
+  const key = k(ch.id, qi);
+  const given = answers[key];
+
+  const typeBadge = q._type === 'qcm' ? ' · QCM' : '';
+  $('exam-tag').textContent = ch.title + typeBadge;
+  $('exam-num').textContent = `Question ${examIndex + 1} sur ${visibleIdx.length}`;
+  $('exam-stmt').textContent = q.statement;
+
+  // Construit dynamiquement les boutons de choix (2 pour VF, 4+ pour QCM)
+  const choicesEl = $('exam-choices');
+  choicesEl.className = q._type === 'qcm' ? 'choices qcm-choices' : 'choices';
+  choicesEl.innerHTML = q._type === 'qcm'
+    ? q.choices.map((c, i) => `
+        <button class="choice qcm" data-v="${i}">
+          <span class="qcm-letter">${String.fromCharCode(65 + i)}</span>
+          <span class="qcm-text">${escapeHtml(c)}</span>
+        </button>`).join('')
+    : `<button class="choice vrai" data-v="true">✓ Vrai</button>
+       <button class="choice faux" data-v="false">✗ Faux</button>`;
+
+  // Wire les boutons
+  choicesEl.querySelectorAll('.choice').forEach(btn => {
+    const val = parseChoiceValue(q, btn.dataset.v);
+    btn.onclick = () => answer(ch.id, qi, val);
+  });
+
+  const fb = $('exam-feedback');
+  fb.className = 'feedback';
+  fb.innerHTML = '';
+
+  if (given !== null) {
+    decorateAnsweredChoices(choicesEl, q, given);
+    const ok = given === q.answer;
+    fb.className = 'feedback show ' + (ok ? 'ok-fb' : 'ko-fb');
+    fb.innerHTML = `<strong>${ok ? '✓ Correct' : '✗ Incorrect — Réponse : ' + escapeHtml(formatAnswer(q))}</strong>${escapeHtml(q.explanation)}`;
+  }
+
+  // Status & nav
+  const answeredCount = visibleIdx.filter(i => answers[k(ch.id, i)] !== null).length;
+  $('exam-status').textContent = `${answeredCount} / ${visibleIdx.length} répondues`;
+  $('exam-prev').disabled = examIndex === 0;
+  $('exam-next').textContent = examIndex === visibleIdx.length - 1 ? 'Voir le score →' : 'Suivant →';
+  $('exam-prev').onclick = () => { if (examIndex > 0) { examIndex--; render(); } };
+  $('exam-next').onclick = () => {
+    if (examIndex < visibleIdx.length - 1) { examIndex++; render(); }
+    else showResults();
+  };
+
+  // Re-trigger animation
+  const card = $('exam-card');
+  card.style.animation = 'none';
+  requestAnimationFrame(() => { card.style.animation = ''; });
+}
+
+// ═══════════════════════════ ANSWER ═══════════════════════════
+function answer(cid, qi, val) {
+  const key = k(cid, qi);
+  if (answers[key] !== null) return;
+  answers[key] = val;
+  render();
+  checkChapterComplete(cid);
+}
+
+function revealCurrentChapter() {
+  const ch = quiz.chapters.find(c => c.id === activeCh);
+  ch.questions.forEach((q, i) => {
+    const key = k(ch.id, i);
+    if (answers[key] === null) answers[key] = q.answer; // remplir avec la bonne réponse
+  });
+  render();
+  checkChapterComplete(ch.id);
+}
+
+function checkChapterComplete(cid) {
+  if (modalsShown[cid]) return;
+  const ch = quiz.chapters.find(c => c.id === cid);
+  const done = ch.questions.every((_, i) => answers[k(cid, i)] !== null);
+  if (done) {
+    modalsShown[cid] = true;
+    const ok = ch.questions.filter((_, i) => answers[k(cid, i)] === ch.questions[i].answer).length;
+    showChapterModal(ok, ch.questions.length);
+  }
+}
+
+// ═══════════════════════════ SCORES & PROGRESS ═══════════════════════════
+function updateScores() {
+  let ok = 0, wr = 0, done = 0, total = 0;
+  quiz.chapters.forEach(ch => {
+    ch.questions.forEach((q, i) => {
+      total++;
+      const v = answers[k(ch.id, i)];
+      if (v !== null) {
+        done++;
+        if (v === q.answer) ok++;
+        else wr++;
+      }
+    });
+  });
+  $('sc-ok').textContent = ok;
+  $('sc-wr').textContent = wr;
+  $('sc-tot').textContent = `${done}/${total}`;
+  $('progress-fill').style.width = (total > 0 ? done / total * 100 : 0) + '%';
+}
+
+function updateChapterProgress() {
+  const ch = quiz.chapters.find(c => c.id === activeCh);
+  const total = ch.questions.length;
+  const done = ch.questions.filter((_, i) => answers[k(ch.id, i)] !== null).length;
+  const f = $('chf-' + ch.id);
+  const l = $('chl-' + ch.id);
+  if (f) f.style.width = (done / total * 100) + '%';
+  if (l) l.textContent = `${done} / ${total}`;
+}
+
+// ═══════════════════════════ FILTER ═══════════════════════════
+function applyFilter() {
+  if (mode === 'revision') {
+    const ch = quiz.chapters.find(c => c.id === activeCh);
+    ch.questions.forEach((q, i) => {
+      const key = k(ch.id, i);
+      const card = $('card-' + key);
+      if (!card) return;
+      let hide = false;
+      if (activeFilter === 'unanswered') {
+        hide = answers[key] !== null;
+      } else if (activeFilter === 'wrong') {
+        // une "erreur" = répondu ET réponse de l'utilisateur ≠ bonne réponse
+        hide = !(answers[key] !== null && answers[key] !== q.answer);
+      }
+      card.classList.toggle('hide', hide);
+    });
+  } else {
+    examIndex = 0;
+    renderExam();
+  }
+}
+
+// ═══════════════════════════ RESULTS PANEL ═══════════════════════════
+function showResults() {
+  $('revision-container').classList.add('hidden');
+  $('exam-container').classList.add('hidden');
+  $('results-container').classList.remove('hidden');
+
+  const cont = $('results-container');
+  let totalQ = 0, totalDone = 0, totalOk = 0;
+  quiz.chapters.forEach(ch => {
+    totalQ += ch.questions.length;
+    ch.questions.forEach((q, i) => {
+      const v = answers[k(ch.id, i)];
+      if (v !== null) {
+        totalDone++;
+        if (v === q.answer) totalOk++;
+      }
+    });
+  });
+
+  const pct = totalQ > 0 ? Math.round(totalOk / totalQ * 100) : 0;
+  let emoji, msg;
+  if (pct >= 90) { emoji = '🏆'; msg = "Maîtrise excellente. Reste sur cette dynamique."; }
+  else if (pct >= 75) { emoji = '🎯'; msg = "Très bonne maîtrise. Quelques détails à consolider."; }
+  else if (pct >= 60) { emoji = '👍'; msg = "Bonne base. Reprends les chapitres où tu as accroché."; }
+  else if (pct >= 40) { emoji = '📚'; msg = "C'est un début. Relis les explications et retente."; }
+  else { emoji = '💪'; msg = "Pas découragé : la répétition fait l'expert. Recommence après une relecture."; }
+
+  let html = `
+    <div class="results-card">
+      <div class="results-emoji">${emoji}</div>
+      <div class="results-title">Résultat global</div>
+      <div class="results-fraction">${totalOk}<span style="color:var(--muted);font-size:.5em;">/${totalQ}</span></div>
+      <div class="results-pct">${pct}% de bonnes réponses · ${totalDone}/${totalQ} répondues</div>
+      <p class="results-msg">${msg}</p>
+      <div class="results-actions">
+        <button class="action-btn" id="r-export">⬇ Exporter les résultats</button>
+        <button class="action-btn" id="r-back">← Retour au quiz</button>
+        <button class="action-btn danger" id="r-reset">↺ Recommencer</button>
+      </div>
+    </div>`;
+
+  quiz.chapters.forEach(ch => {
+    const okCh = ch.questions.filter((q, i) => answers[k(ch.id, i)] === q.answer).length;
+    const doneCh = ch.questions.filter((_, i) => answers[k(ch.id, i)] !== null).length;
+    html += `
+      <div class="review-section">
+        <h3>${escapeHtml(ch.icon ? ch.icon + ' ' : '')}${escapeHtml(ch.title)}</h3>
+        <div class="review-meta">${okCh} / ${ch.questions.length} corrects · ${doneCh} répondues</div>
+        <div class="review-grid">
+          ${ch.questions.map((q, i) => {
+            const v = answers[k(ch.id, i)];
+            if (v === null) return `<div class="review-dot dot-skip" title="Q${i+1} — Non répondue">${i+1}</div>`;
+            const ok = v === q.answer;
+            return `<div class="review-dot ${ok ? 'dot-ok' : 'dot-ko'}" title="Q${i+1} — ${ok ? 'Correct' : 'Incorrect'} : ${escapeHtml(q.statement.slice(0, 60))}…" data-ch="${ch.id}" data-qi="${i}">${i+1}</div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  });
+
+  cont.innerHTML = html;
+  $('r-back').onclick = hideResults;
+  $('r-reset').onclick = () => { resetAll(); hideResults(); };
+  $('r-export').onclick = exportResults;
+
+  // Click on a dot → jump to question
+  cont.querySelectorAll('.review-dot[data-ch]').forEach(d => {
+    d.addEventListener('click', () => {
+      activeCh = d.dataset.ch;
+      mode = 'revision';
+      activeFilter = 'all';
+      hideResults();
+      render();
+      const card = $('card-' + activeCh + '-' + d.dataset.qi);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideResults() {
+  $('results-container').classList.add('hidden');
+  if (mode === 'revision') $('revision-container').classList.remove('hidden');
+  else $('exam-container').classList.remove('hidden');
+}
+
+// ═══════════════════════════ EXPORT ═══════════════════════════
+function exportResults() {
+  let totalQ = 0, totalDone = 0, totalOk = 0;
+  const details = [];
+  quiz.chapters.forEach(ch => {
+    ch.questions.forEach((q, i) => {
+      totalQ++;
+      const v = answers[k(ch.id, i)];
+      const result = v === null ? 'skipped' : (v === q.answer ? 'correct' : 'incorrect');
+      if (v !== null) {
+        totalDone++;
+        if (v === q.answer) totalOk++;
+      }
+      details.push({
+        chapter: ch.title,
+        question_number: i + 1,
+        statement: q.statement,
+        correct_answer: q.answer,
+        user_answer: v,
+        result: result,
+        explanation: q.explanation
+      });
+    });
+  });
+
+  const payload = {
+    quiz_title: quiz.title,
+    quiz_subtitle: quiz.subtitle || null,
+    completed_at: new Date().toISOString(),
+    summary: {
+      total_questions: totalQ,
+      answered: totalDone,
+      correct: totalOk,
+      incorrect: totalDone - totalOk,
+      score_percentage: totalQ > 0 ? Math.round(totalOk / totalQ * 100) : 0
+    },
+    by_chapter: quiz.chapters.map(ch => {
+      const okCh = ch.questions.filter((q, i) => answers[k(ch.id, i)] === q.answer).length;
+      const doneCh = ch.questions.filter((_, i) => answers[k(ch.id, i)] !== null).length;
+      return {
+        title: ch.title,
+        total: ch.questions.length,
+        answered: doneCh,
+        correct: okCh
+      };
+    }),
+    details: details
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = (quiz.title || 'quiz').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  a.href = url;
+  a.download = `resultats_${safeName}_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════ RESET ═══════════════════════════
+function resetAll() {
+  Object.keys(answers).forEach(key => answers[key] = null);
+  modalsShown = {};
+  examIndex = 0;
+  if (randomized) shuffleAllChapters();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════ MODALS ═══════════════════════════
+function showChapterModal(ok, total) {
+  const pct = ok / total;
+  const i = Math.min(4, Math.floor(pct * 5));
+  const emojis = ['😅', '🤔', '👍', '🎯', '🏆'];
+  const msgs = [
+    "Cours à reprendre — il reste des secrets à percer.",
+    "Pas mal ! Quelques révisions ciblées aideront.",
+    "Bonne maîtrise. Tu as les concepts clés.",
+    "Excellent ! Tu connais ton sujet.",
+    "Score parfait. Chapeau."
+  ];
+  $('cm-emoji').textContent = emojis[i];
+  $('cm-score').textContent = ok;
+  $('cm-total').textContent = total;
+  $('cm-msg').textContent = msgs[i];
+  $('chapter-modal').classList.add('show');
+}
+
+function setupModals() {
+  $('cm-close').onclick = () => $('chapter-modal').classList.remove('show');
+  $('chapter-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'chapter-modal') e.target.classList.remove('show');
+  });
+  $('pm-close').onclick = () => $('prompt-modal').classList.remove('show');
+  $('prompt-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'prompt-modal') e.target.classList.remove('show');
+  });
+  $('btn-show-prompt').onclick = openPromptModal;
+
+  // Tabs VF / QCM dans la modal du prompt
+  document.querySelectorAll('.prompt-tab').forEach(t => {
+    t.onclick = () => setActivePromptType(t.dataset.prompt);
+  });
+}
+
+// État de la modal : quel prompt est actuellement affiché
+let activePromptType = 'vf'; // 'vf' | 'qcm'
+
+function getActivePromptText() {
+  return activePromptType === 'qcm' ? GENERATION_PROMPT_QCM : GENERATION_PROMPT_VF;
+}
+
+function setActivePromptType(type) {
+  activePromptType = (type === 'qcm') ? 'qcm' : 'vf';
+  document.querySelectorAll('.prompt-tab').forEach(t => {
+    t.classList.toggle('on', t.dataset.prompt === activePromptType);
+  });
+  $('prompt-text').textContent = getActivePromptText();
+  // Reset du bouton copier
+  const btn = $('copy-btn');
+  btn.textContent = '⎘ Copier le prompt';
+  btn.classList.remove('copied');
+}
+
+function openPromptModal() {
+  // Repart toujours sur VF à l'ouverture (mais conserve le choix si la modal est rouverte)
+  setActivePromptType(activePromptType);
+  $('prompt-modal').classList.add('show');
+}
+
+// ═══════════════════════════ EVENT WIRING ═══════════════════════════
+function wireToolbar() {
+  $('sw-revision').onclick = () => { mode = 'revision'; render(); };
+  $('sw-exam').onclick = () => { mode = 'exam'; examIndex = 0; render(); };
+  $('sw-random').onclick = () => {
+    randomized = !randomized;
+    if (randomized) shuffleAllChapters();
+    else resetOrders();
+    examIndex = 0;
+    render();
+  };
+
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.onclick = () => {
+      activeFilter = b.dataset.filter;
+      examIndex = 0;
+      render();
+    };
+  });
+
+  $('btn-reveal').onclick = revealCurrentChapter;
+  $('btn-results').onclick = showResults;
+  $('btn-export').onclick = exportResults;
+  $('btn-reset').onclick = () => {
+    if (confirm("Réinitialiser toutes les réponses ?")) resetAll();
+  };
+  $('btn-load-other').onclick = () => {
+    if (confirm("Charger un autre quiz ? (les réponses actuelles seront perdues)")) {
+      quiz = null;
+      $('quiz-state').classList.add('hidden');
+      $('empty-state').classList.remove('hidden');
+      clearError();
+      window.scrollTo({ top: 0 });
+    }
+  };
+}
+
+function wireEmptyState() {
+  $('btn-load-demo').onclick = () => loadQuiz(JSON.parse(JSON.stringify(DEMO_QUIZ)));
+
+  // ─── Paste zone ───
+  const ta = $('paste-input');
+  const loadBtn = $('pz-load');
+  const clearBtn = $('pz-clear');
+
+  const updateLoadBtn = () => {
+    loadBtn.disabled = ta.value.trim().length === 0;
+  };
+  ta.addEventListener('input', updateLoadBtn);
+  ta.addEventListener('paste', () => setTimeout(updateLoadBtn, 0));
+
+  loadBtn.addEventListener('click', () => {
+    clearError();
+    loadFromText(ta.value);
+  });
+
+  // Ctrl/Cmd + Enter pour charger rapidement
+  ta.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !loadBtn.disabled) {
+      e.preventDefault();
+      loadBtn.click();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    ta.value = '';
+    updateLoadBtn();
+    clearError();
+    ta.focus();
+  });
+
+  // ─── Copy prompt button ───
+  $('copy-btn').onclick = async () => {
+    const promptText = getActivePromptText();
+    try {
+      await navigator.clipboard.writeText(promptText);
+      const btn = $('copy-btn');
+      btn.textContent = '✓ Copié !';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '⎘ Copier le prompt';
+        btn.classList.remove('copied');
+      }, 2000);
+    } catch (err) {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = promptText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      $('copy-btn').textContent = '✓ Copié !';
+    }
+  };
+}
+
+// ═══════════════════════════ INIT ═══════════════════════════
+// Le span "footer-version" se trouve APRÈS la balise de fermeture du script
+// dans le HTML, donc il n'existe pas encore au moment où ce code s'exécute.
+// On encapsule tout le boot dans un init() déféré pour que le DOM entier soit
+// disponible, et on garde chaque lookup pour être robuste.
+function applyVersion() {
+  const eyebrow = document.getElementById('hero-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'Quizz Engine · ' + VERSION;
+  const footer = document.getElementById('footer-version');
+  if (footer) footer.textContent = VERSION;
+}
+function init() {
+  applyVersion();
+  setupDropzone();
+  setupModals();
+  wireToolbar();
+  wireEmptyState();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+<footer class="site-footer">
+  Quizz Engine <span id="footer-version">v?.?</span> — V2.0
+</footer>
+</body>
+</html>
